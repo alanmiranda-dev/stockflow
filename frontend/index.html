@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StockFlow</title>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -13,7 +15,45 @@
 
     <div class="container">
 
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+            <button id="btnTema" class="btn-tema">🌙 Modo Escuro</button>
+        </div>
+
         <h1>📦 StockFlow</h1>
+
+        <div class="dashboard-grid">
+            <div class="card-mini">
+                <h3>Total de Produtos</h3>
+                <p id="totalProdutos">0</p>
+            </div>
+            <div class="card-mini">
+                <h3>Itens em Estoque</h3>
+                <p id="totalEstoque">0</p>
+            </div>
+            <div class="card-mini">
+                <h3>Valor Total</h3>
+                <p id="valorEstoque">R$ 0,00</p>
+            </div>
+            <div class="card-mini critico">
+                <h3>Alertas Críticos</h3>
+                <p id="produtosCriticos">0</p>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="card chart-card">
+                <h2>Distribuição por Categoria (Qtd)</h2>
+                <div class="chart-container">
+                    <canvas id="graficoCategorias"></canvas>
+                </div>
+            </div>
+            <div class="card chart-card">
+                <h2>Valor Investido por Categoria (R$)</h2>
+                <div class="chart-container">
+                    <canvas id="graficoValores"></canvas>
+                </div>
+            </div>
+        </div>
 
         <div class="card">
 
@@ -29,27 +69,11 @@
                 >
 
                 <select id="categoria" required>
-
-                    <option value="">
-                        Categoria
-                    </option>
-
-                    <option value="Periféricos">
-                        Periféricos
-                    </option>
-
-                    <option value="Hardware">
-                        Hardware
-                    </option>
-
-                    <option value="Monitores">
-                        Monitores
-                    </option>
-
-                    <option value="Acessórios">
-                        Acessórios
-                    </option>
-
+                    <option value="">Categoria</option>
+                    <option value="Periféricos">Periféricos</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Monitores">Monitores</option>
+                    <option value="Acessórios">Acessórios</option>
                 </select>
 
                 <input
@@ -57,14 +81,15 @@
                     id="quantidade"
                     placeholder="Quantidade"
                     required
+                    min="0"
                 >
 
                 <input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     id="preco"
-                    placeholder="Preço"
+                    placeholder="Preço (R$ 0,00)"
                     required
+                    data-type="currency"
                 >
 
                 <input
@@ -72,81 +97,72 @@
                     id="estoqueMinimo"
                     placeholder="Estoque mínimo"
                     required
+                    min="0"
                 >
 
                 <button type="submit">
-                    Salvar
+                    Cadastrar
                 </button>
 
             </form>
 
         </div>
 
-        <div class="dashboard">
-
-            <div class="card-metrica">
-                <h3>Total Produtos</h3>
-                <span id="totalProdutos">0</span>
-            </div>
-
-            <div class="card-metrica">
-                <h3>Itens em Estoque</h3>
-                <span id="totalEstoque">0</span>
-            </div>
-
-            <div class="card-metrica">
-                <h3>Valor Total</h3>
-                <span id="valorEstoque">R$ 0,00</span>
-            </div>
-
-            <div class="card-metrica">
-                <h3>Produtos Críticos</h3>
-                <span id="produtosCriticos">0</span>
-            </div>
-
-        </div>
-
         <div class="card">
 
-            <h2>Produtos Cadastrados</h2>
+            <h2>Estoque</h2>
 
-            <input
-                type="text"
-                id="pesquisa"
-                placeholder="🔍 Pesquisar produto..."
-            >
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <input
+                    type="text"
+                    id="pesquisa"
+                    placeholder="Pesquisar produto por nome..."
+                    style="flex: 2;"
+                >
+                <select id="filtroCategoria" style="flex: 1; min-width: 150px;">
+                    <option value="">Todas as Categorias</option>
+                    <option value="Periféricos">Periféricos</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Monitores">Monitores</option>
+                    <option value="Acessórios">Acessórios</option>
+                </select>
+            </div>
 
-            <br><br>
-
-            <table>
-
-                <thead>
-
-                    <tr>
-
-                        <th>ID</th>
-                        <th>Produto</th>
-                        <th>Categoria</th>
-                        <th>Quantidade</th>
-                        <th>Preço</th>
-                        <th>Estoque Mínimo</th>
-                        <th>Status</th>
-                        <th>Ações</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody id="tabelaProdutos">
-                </tbody>
-
-            </table>
+            <div class="table-container">
+                <table>
+    
+                    <thead>
+                        <tr>
+                            <th onclick="ordenarPor('id')" style="cursor: pointer;">ID <span id="seta-id">↕</span></th>
+                            <th onclick="ordenarPor('nome')" style="cursor: pointer;">Nome <span id="seta-nome">↕</span></th>
+                            <th onclick="ordenarPor('categoria')" style="cursor: pointer;">Categoria <span id="seta-categoria">↕</span></th>
+                            <th onclick="ordenarPor('quantidade')" style="cursor: pointer;">Quantidade <span id="seta-quantidade">↕</span></th>
+                            <th onclick="ordenarPor('preco')" style="cursor: pointer;">Preço <span id="seta-preco">↕</span></th>
+                            <th onclick="ordenarPor('estoque_minimo')" style="cursor: pointer;">Estoque Mín. <span id="seta-estoque_minimo">↕</span></th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+    
+                    <tbody id="tabelaProdutos">
+                        </tbody>
+    
+                </table>
+            </div>
 
         </div>
 
+        <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div>
+        <h2>Auditoria e Segurança do Sistema</h2>
+        <p style="color: var(--text-muted); font-size: 14px;">Acompanhe o histórico completo de entradas, saídas e edições de produtos.</p>
     </div>
+    <button onclick="window.location.href='logs.html'" style="background: var(--dark); color: var(--card-bg); display: flex; align-items: center; gap: 8px;">
+        📋 Ver Histórico Completo
+    </button>
+</div>
 
-    <!-- MODAL -->
+    </div>
 
     <div id="modalEditar" class="modal">
 
@@ -154,74 +170,72 @@
 
             <h2>Editar Produto</h2>
 
-            <input type="hidden" id="editId">
+            <form id="editProdutoForm">
+                
+                <input type="hidden" id="editId">
 
-            <input
-                type="text"
-                id="editNome"
-                placeholder="Nome"
-            >
-
-            <select id="editCategoria">
-
-                <option value="Periféricos">
-                    Periféricos
-                </option>
-
-                <option value="Hardware">
-                    Hardware
-                </option>
-
-                <option value="Monitores">
-                    Monitores
-                </option>
-
-                <option value="Acessórios">
-                    Acessórios
-                </option>
-
-            </select>
-
-            <input
-                type="number"
-                id="editQuantidade"
-                placeholder="Quantidade"
-            >
-
-            <input
-                type="number"
-                step="0.01"
-                id="editPreco"
-                placeholder="Preço"
-            >
-
-            <input
-                type="number"
-                id="editEstoqueMinimo"
-                placeholder="Estoque mínimo"
-            >
-
-            <div class="modal-actions">
-
-                <button
-                    class="btn-cancelar"
-                    onclick="fecharModal()"
+                <input
+                    type="text"
+                    id="editNome"
+                    placeholder="Nome do produto"
+                    required
                 >
-                    Cancelar
-                </button>
 
-                <button
-                    class="btn-salvar"
-                    onclick="salvarEdicao()"
+                <select id="editCategoria" required>
+                    <option value="Periféricos">Periféricos</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Monitores">Monitores</option>
+                    <option value="Acessórios">Acessórios</option>
+                </select>
+
+                <input
+                    type="number"
+                    id="editQuantidade"
+                    placeholder="Quantidade"
+                    required
+                    min="0"
                 >
-                    Salvar
-                </button>
 
-            </div>
+                <input
+                    type="text"
+                    id="editPreco"
+                    placeholder="Preço (R$ 0,00)"
+                    required
+                    data-type="currency"
+                >
+
+                <input
+                    type="number"
+                    id="editEstoqueMinimo"
+                    placeholder="Estoque mínimo"
+                    required
+                    min="0"
+                >
+
+                <div class="modal-actions">
+                    <button
+                        type="button"
+                        class="btn-cancelar"
+                        onclick="fecharModal()"
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="btn-salvar"
+                    >
+                        Salvar
+                    </button>
+                </div>
+
+            </form>
 
         </div>
 
     </div>
+
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="script.js"></script>
 
