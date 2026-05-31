@@ -9,144 +9,247 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+/* ==========================
+   STATUS API
+========================== */
+
 app.get('/', async (req, res) => {
-  try {
-    const resultado = await pool.query('SELECT NOW()');
 
-    res.json({
-      projeto: 'StockFlow',
-      status: 'online',
-      banco: 'conectado',
-      horario_banco: resultado.rows[0].now
-    });
+    try {
 
-  } catch (erro) {
-    console.error(erro);
+        const resultado =
+            await pool.query('SELECT NOW()');
 
-    res.status(500).json({
-      projeto: 'StockFlow',
-      status: 'erro',
-      banco: 'desconectado'
-    });
-  }
+        res.json({
+            projeto: 'StockFlow',
+            status: 'online',
+            banco: 'conectado',
+            horario_banco: resultado.rows[0].now
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            projeto: 'StockFlow',
+            status: 'erro',
+            banco: 'desconectado'
+        });
+
+    }
+
 });
+
+/* ==========================
+   LISTAR PRODUTOS
+========================== */
 
 app.get('/produtos', async (req, res) => {
-  try {
-    const resultado = await pool.query(
-      'SELECT * FROM produtos ORDER BY id'
-    );
 
-    res.json(resultado.rows);
+    try {
 
-  } catch (erro) {
-    console.error(erro);
+        const resultado = await pool.query(
+            `
+            SELECT *
+            FROM produtos
+            ORDER BY id
+            `
+        );
 
-    res.status(500).json({
-      erro: 'Erro ao buscar produtos'
-    });
-  }
+        res.json(resultado.rows);
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            erro: 'Erro ao buscar produtos'
+        });
+
+    }
+
 });
+
+/* ==========================
+   CADASTRAR PRODUTO
+========================== */
 
 app.post('/produtos', async (req, res) => {
-  try {
 
-    const { nome, quantidade, preco } = req.body;
+    try {
 
-    const resultado = await pool.query(
-      `
-      INSERT INTO produtos (nome, quantidade, preco)
-      VALUES ($1, $2, $3)
-      RETURNING *
-      `,
-      [nome, quantidade, preco]
-    );
+        const {
+            nome,
+            categoria,
+            quantidade,
+            preco,
+            estoque_minimo
+        } = req.body;
 
-    res.status(201).json(resultado.rows[0]);
+        const resultado = await pool.query(
+            `
+            INSERT INTO produtos
+            (
+                nome,
+                categoria,
+                quantidade,
+                preco,
+                estoque_minimo
+            )
+            VALUES
+            (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5
+            )
+            RETURNING *
+            `,
+            [
+                nome,
+                categoria,
+                quantidade,
+                preco,
+                estoque_minimo
+            ]
+        );
 
-  } catch (erro) {
+        res.status(201).json(
+            resultado.rows[0]
+        );
 
-    console.error(erro);
+    } catch (erro) {
 
-    res.status(500).json({
-      erro: 'Erro ao cadastrar produto'
-    });
+        console.error(erro);
 
-  }
+        res.status(500).json({
+            erro: 'Erro ao cadastrar produto'
+        });
+
+    }
+
 });
+
+/* ==========================
+   ATUALIZAR PRODUTO
+========================== */
 
 app.put('/produtos/:id', async (req, res) => {
-  try {
 
-    const { id } = req.params;
-    const { nome, quantidade, preco } = req.body;
+    try {
 
-    const resultado = await pool.query(
-      `
-      UPDATE produtos
-      SET nome = $1,
-          quantidade = $2,
-          preco = $3
-      WHERE id = $4
-      RETURNING *
-      `,
-      [nome, quantidade, preco, id]
-    );
+        const { id } = req.params;
 
-    if (resultado.rows.length === 0) {
-      return res.status(404).json({
-        erro: 'Produto não encontrado'
-      });
+        const {
+            nome,
+            categoria,
+            quantidade,
+            preco,
+            estoque_minimo
+        } = req.body;
+
+        const resultado = await pool.query(
+            `
+            UPDATE produtos
+            SET
+                nome = $1,
+                categoria = $2,
+                quantidade = $3,
+                preco = $4,
+                estoque_minimo = $5
+            WHERE id = $6
+            RETURNING *
+            `,
+            [
+                nome,
+                categoria,
+                quantidade,
+                preco,
+                estoque_minimo,
+                id
+            ]
+        );
+
+        if (
+            resultado.rows.length === 0
+        ) {
+
+            return res.status(404).json({
+                erro: 'Produto não encontrado'
+            });
+
+        }
+
+        res.json(resultado.rows[0]);
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            erro: 'Erro ao atualizar produto'
+        });
+
     }
 
-    res.json(resultado.rows[0]);
-
-  } catch (erro) {
-
-    console.error(erro);
-
-    res.status(500).json({
-      erro: 'Erro ao atualizar produto'
-    });
-
-  }
 });
+
+/* ==========================
+   EXCLUIR PRODUTO
+========================== */
 
 app.delete('/produtos/:id', async (req, res) => {
-  try {
 
-    const { id } = req.params;
+    try {
 
-    const resultado = await pool.query(
-      `
-      DELETE FROM produtos
-      WHERE id = $1
-      RETURNING *
-      `,
-      [id]
-    );
+        const { id } = req.params;
 
-    if (resultado.rows.length === 0) {
-      return res.status(404).json({
-        erro: 'Produto não encontrado'
-      });
+        const resultado = await pool.query(
+            `
+            DELETE FROM produtos
+            WHERE id = $1
+            RETURNING *
+            `,
+            [id]
+        );
+
+        if (
+            resultado.rows.length === 0
+        ) {
+
+            return res.status(404).json({
+                erro: 'Produto não encontrado'
+            });
+
+        }
+
+        res.json({
+            mensagem:
+                'Produto removido com sucesso'
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            erro: 'Erro ao remover produto'
+        });
+
     }
 
-    res.json({
-      mensagem: 'Produto removido com sucesso'
-    });
-
-  } catch (erro) {
-
-    console.error(erro);
-
-    res.status(500).json({
-      erro: 'Erro ao remover produto'
-    });
-
-  }
 });
 
+/* ==========================
+   INICIAR SERVIDOR
+========================== */
+
 app.listen(process.env.PORT, () => {
-  console.log(`Servidor rodando na porta ${process.env.PORT}`);
+
+    console.log(
+        `Servidor rodando na porta ${process.env.PORT}`
+    );
+
 });

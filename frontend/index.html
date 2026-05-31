@@ -1,41 +1,230 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StockFlow</title>
+
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-    <h1>StockFlow</h1>
+    <div class="container">
 
-    <h2>Cadastrar Produto</h2>
+        <h1>📦 StockFlow</h1>
 
-    <form id="produtoForm">
-        <input type="text" id="nome" placeholder="Nome" required>
-        <input type="number" id="quantidade" placeholder="Quantidade" required>
-        <input type="number" step="0.01" id="preco" placeholder="Preço" required>
-        <button type="submit">Salvar</button>
-    </form>
+        <div class="card">
 
-    <h2>Produtos</h2>
+            <h2>Cadastrar Produto</h2>
 
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nome</th>
-                <th>Quantidade</th>
-                <th>Preço</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody id="tabelaProdutos">
-        </tbody>
-    </table>
+            <form id="produtoForm">
+
+                <input
+                    type="text"
+                    id="nome"
+                    placeholder="Nome do produto"
+                    required
+                >
+
+                <select id="categoria" required>
+
+                    <option value="">
+                        Categoria
+                    </option>
+
+                    <option value="Periféricos">
+                        Periféricos
+                    </option>
+
+                    <option value="Hardware">
+                        Hardware
+                    </option>
+
+                    <option value="Monitores">
+                        Monitores
+                    </option>
+
+                    <option value="Acessórios">
+                        Acessórios
+                    </option>
+
+                </select>
+
+                <input
+                    type="number"
+                    id="quantidade"
+                    placeholder="Quantidade"
+                    required
+                >
+
+                <input
+                    type="number"
+                    step="0.01"
+                    id="preco"
+                    placeholder="Preço"
+                    required
+                >
+
+                <input
+                    type="number"
+                    id="estoqueMinimo"
+                    placeholder="Estoque mínimo"
+                    required
+                >
+
+                <button type="submit">
+                    Salvar
+                </button>
+
+            </form>
+
+        </div>
+
+        <div class="dashboard">
+
+            <div class="card-metrica">
+                <h3>Total Produtos</h3>
+                <span id="totalProdutos">0</span>
+            </div>
+
+            <div class="card-metrica">
+                <h3>Itens em Estoque</h3>
+                <span id="totalEstoque">0</span>
+            </div>
+
+            <div class="card-metrica">
+                <h3>Valor Total</h3>
+                <span id="valorEstoque">R$ 0,00</span>
+            </div>
+
+            <div class="card-metrica">
+                <h3>Produtos Críticos</h3>
+                <span id="produtosCriticos">0</span>
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            <h2>Produtos Cadastrados</h2>
+
+            <input
+                type="text"
+                id="pesquisa"
+                placeholder="🔍 Pesquisar produto..."
+            >
+
+            <br><br>
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>ID</th>
+                        <th>Produto</th>
+                        <th>Categoria</th>
+                        <th>Quantidade</th>
+                        <th>Preço</th>
+                        <th>Estoque Mínimo</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="tabelaProdutos">
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <!-- MODAL -->
+
+    <div id="modalEditar" class="modal">
+
+        <div class="modal-content">
+
+            <h2>Editar Produto</h2>
+
+            <input type="hidden" id="editId">
+
+            <input
+                type="text"
+                id="editNome"
+                placeholder="Nome"
+            >
+
+            <select id="editCategoria">
+
+                <option value="Periféricos">
+                    Periféricos
+                </option>
+
+                <option value="Hardware">
+                    Hardware
+                </option>
+
+                <option value="Monitores">
+                    Monitores
+                </option>
+
+                <option value="Acessórios">
+                    Acessórios
+                </option>
+
+            </select>
+
+            <input
+                type="number"
+                id="editQuantidade"
+                placeholder="Quantidade"
+            >
+
+            <input
+                type="number"
+                step="0.01"
+                id="editPreco"
+                placeholder="Preço"
+            >
+
+            <input
+                type="number"
+                id="editEstoqueMinimo"
+                placeholder="Estoque mínimo"
+            >
+
+            <div class="modal-actions">
+
+                <button
+                    class="btn-cancelar"
+                    onclick="fecharModal()"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    class="btn-salvar"
+                    onclick="salvarEdicao()"
+                >
+                    Salvar
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
 
     <script src="script.js"></script>
 
 </body>
+
 </html>
