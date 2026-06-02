@@ -265,6 +265,18 @@ Cada registro armazena:
 
 ---
 
+## Topologia da Rede
+
+| Componente | IP | Porta | Função |
+|------------|-----|--------|---------|
+| Frontend | localhost | 8080 | Interface do usuário |
+| Backend | localhost | 3000 | API REST |
+| PostgreSQL | localhost | 5432 | Banco de dados |
+
+Fluxo:
+
+Frontend → Backend → PostgreSQL
+
 ## Demonstração da Arquitetura
 
 Durante a apresentação foram demonstrados:
