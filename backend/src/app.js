@@ -9,6 +9,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+async function registrarLog(tipo, descricao) {
+
+    try {
+
+        await pool.query(
+            `
+            INSERT INTO logs
+            (
+                tipo,
+                descricao
+            )
+            VALUES
+            (
+                $1,
+                $2
+            )
+            `,
+            [
+                tipo,
+                descricao
+            ]
+        );
+
+    } catch (erro) {
+
+        console.error(
+            'Erro ao registrar log:',
+            erro
+        );
+
+    }
+
+}
+
 /* ==========================
    STATUS API
 ========================== */
@@ -116,6 +150,11 @@ app.post('/produtos', async (req, res) => {
             ]
         );
 
+        await registrarLog(
+    'CADASTRO',
+    `Produto "${nome}" cadastrado com ${quantidade} unidades`
+);
+
         res.status(201).json(
             resultado.rows[0]
         );
@@ -182,6 +221,11 @@ app.put('/produtos/:id', async (req, res) => {
 
         }
 
+        await registrarLog(
+    'EDIÇÃO',
+    `Produto "${nome}" atualizado`
+);
+
         res.json(resultado.rows[0]);
 
     } catch (erro) {
@@ -206,18 +250,16 @@ app.delete('/produtos/:id', async (req, res) => {
 
         const { id } = req.params;
 
-        const resultado = await pool.query(
+        const produto = await pool.query(
             `
-            DELETE FROM produtos
+            SELECT *
+            FROM produtos
             WHERE id = $1
-            RETURNING *
             `,
             [id]
         );
 
-        if (
-            resultado.rows.length === 0
-        ) {
+        if (produto.rows.length === 0) {
 
             return res.status(404).json({
                 erro: 'Produto não encontrado'
@@ -225,9 +267,23 @@ app.delete('/produtos/:id', async (req, res) => {
 
         }
 
+        const nomeProduto = produto.rows[0].nome;
+
+        await pool.query(
+            `
+            DELETE FROM produtos
+            WHERE id = $1
+            `,
+            [id]
+        );
+
+        await registrarLog(
+            'EXCLUSÃO',
+            `Produto "${nomeProduto}" removido`
+        );
+
         res.json({
-            mensagem:
-                'Produto removido com sucesso'
+            mensagem: 'Produto removido com sucesso'
         });
 
     } catch (erro) {
@@ -241,10 +297,70 @@ app.delete('/produtos/:id', async (req, res) => {
     }
 
 });
+/* ==========================
+   LISTAR LOGS
+========================== */
 
+app.get('/logs', async (req, res) => {
+
+    try {
+
+        const resultado = await pool.query(
+            `
+            SELECT *
+            FROM logs
+            ORDER BY data_evento DESC
+            `
+        );
+
+        res.json(
+            resultado.rows
+        );
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            erro: 'Erro ao buscar logs'
+        });
+
+    }
+
+});
 /* ==========================
    INICIAR SERVIDOR
 ========================== */
+
+/* ==========================
+   LIMPAR LOGS
+========================== */
+
+app.delete('/logs', async (req, res) => {
+
+    try {
+
+        await pool.query(
+            `
+            DELETE FROM logs
+            `
+        );
+
+        res.json({
+            mensagem: 'Histórico removido com sucesso'
+        });
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        res.status(500).json({
+            erro: 'Erro ao limpar logs'
+        });
+
+    }
+
+});
 
 app.listen(process.env.PORT, () => {
 

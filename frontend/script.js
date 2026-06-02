@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:3000/produtos';
+// Configuração da infraestrutura de rede da API distribuída
+const API_BASE = 'http://localhost:3000';
+const API_URL = `${API_BASE}/produtos`;
 
 let produtosGlobais = [];
 let colunaAtual = '';
@@ -38,22 +40,7 @@ function converterMoedaParaFloat(textoMoeda) {
 }
 
 /* ==========================================================================
-   SISTEMA COLETOR DE LOGS (PERSISTÊNCIA LOCAL PARA AUDITORIA)
-   ========================================================================== */
-function registarLog(mensagem) {
-    let logs = JSON.parse(localStorage.getItem('stockflow_logs')) || [];
-    const agora = new Date();
-    const timestamp = `${agora.toLocaleDateString()} ${agora.toLocaleTimeString()}`;
-    
-    logs.unshift(`[${timestamp}] ${mensagem}`);
-    
-    // Mantém um limite saudável de até 50 registros no histórico
-    if (logs.length > 50) logs.pop(); 
-    localStorage.setItem('stockflow_logs', JSON.stringify(logs));
-}
-
-/* ==========================================================================
-   NOTIFICAÇÕES FLUTUANTES (TOAST)
+   NOTIFICAÇÕES FLUTUANTES (TOAST - SUBSTITUINDO ALERTS NATIVOS)
    ========================================================================== */
 function mostrarToast(mensagem, tipo = 'sucesso') {
     const container = document.getElementById('toastContainer');
@@ -61,7 +48,7 @@ function mostrarToast(mensagem, tipo = 'sucesso') {
 
     const toast = document.createElement('div');
     toast.className = `toast ${tipo}`;
-    toast.textContent = mensagem;
+    toast.textContent = mensagem || ''; // Correção aplicada de forma segura
 
     container.appendChild(toast);
 
@@ -77,11 +64,12 @@ function mostrarToast(mensagem, tipo = 'sucesso') {
 async function carregarProdutos() {
     try {
         const resposta = await fetch(API_URL);
+        if (!resposta.ok) throw new Error();
         produtosGlobais = await resposta.json();
         processarExibicao();
     } catch (erro) {
         console.error(erro);
-        mostrarToast('Erro ao ligar com o servidor do inventário.', 'erro');
+        mostrarToast('Erro ao conectar com o servidor do inventário.', 'erro');
     }
 }
 
@@ -99,7 +87,7 @@ function processarExibicao() {
         return correspondeNome && correspondeCategoria;
     });
 
-    // 2. Ordenação de colunas (se houver alguma ativa)
+    // 2. Ordenação dinâmica de colunas por tipo de dados
     if (colunaAtual) {
         produtosFiltrados.sort((a, b) => {
             let valA = a[colunaAtual];
@@ -119,7 +107,7 @@ function processarExibicao() {
         });
     }
 
-    // 3. Atualiza a interface visual completa
+    // 3. Atualiza os componentes visuais dependentes
     renderizarTabela(produtosFiltrados);
     atualizarDashboard(produtosGlobais);
     renderizarGraficos(produtosGlobais);
@@ -164,7 +152,7 @@ function renderizarTabela(produtos) {
         let statusClasse = '';
         let statusTexto = '';
 
-        // Lógica de cálculo dos Badges de Status do Estoque
+        // Regra de negócio visual para status de criticidade do estoque
         if (quantidade <= estoqueMinimo) {
             statusClasse = 'status-critico'; statusTexto = 'CRÍTICO';
         } else if (quantidade <= (estoqueMinimo * 2)) {
@@ -221,7 +209,7 @@ function renderizarGraficos(produtos) {
     const isDark = document.body.classList.contains('dark-mode');
     const corTexto = isDark ? '#f8fafc' : '#1f2937';
 
-    // Gráfico 1: Quantidade por Categoria (Doughnut)
+    // Gráfico 1: Distribuição de Itens (Doughnut)
     if (chartQtdInstance) chartQtdInstance.destroy();
     const ctxQtd = document.getElementById('graficoCategorias').getContext('2d');
     chartQtdInstance = new Chart(ctxQtd, {
@@ -233,7 +221,7 @@ function renderizarGraficos(produtos) {
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: corTexto } } } }
     });
 
-    // Gráfico 2: Valor Monetário em Estoque por Categoria (Barra Horizontal)
+    // Gráfico 2: Investimento Financeiro por Categoria (Barra Horizontal)
     if (chartValInstance) chartValInstance.destroy();
     const ctxVal = document.getElementById('graficoValores').getContext('2d');
     chartValInstance = new Chart(ctxVal, {
@@ -251,7 +239,7 @@ function renderizarGraficos(produtos) {
 }
 
 /* ==========================================================================
-   AÇÕES DO FORMULÁRIO (CADASTRO, EDIÇÃO E EXCLUSÃO)
+   AÇÕES DO FORMULÁRIO OPERACIONAL (COMUNICAÇÃO REATIVA COM O BACKEND)
    ========================================================================== */
 document.getElementById('produtoForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -278,11 +266,10 @@ document.getElementById('produtoForm').addEventListener('submit', async (e) => {
         if (!resposta.ok) throw new Error();
 
         e.target.reset();
-        mostrarToast('Produto cadastrado com sucesso!');
-        registarLog(`NOVO PRODUTO: "${produto.nome}" adicionado com estoque inicial de ${produto.quantidade} unidades.`);
-        carregarProdutos();
+        mostrarToast('Produto cadastrado com sucesso!', 'sucesso');
+        await carregarProdutos(); // Atualiza a tabela imediatamente
     } catch (erro) {
-        mostrarToast('Falha ao tentar inserir o produto.', 'erro');
+        mostrarToast('Falha ao tentar cadastrar o produto no servidor.', 'erro');
     }
 });
 
@@ -297,10 +284,12 @@ async function excluirProduto(id) {
         if (!resposta.ok) throw new Error();
 
         mostrarToast('Produto removido com sucesso.', 'aviso');
-        registarLog(`PRODUTO REMOVIDO: "${nomeProduto}" (ID: ${id}) foi excluído do inventário.`);
-        carregarProdutos();
+        
+        // Atualização Reativa: Remove do array local sem recarregar a página
+        produtosGlobais = produtosGlobais.filter(p => p.id !== id);
+        processarExibicao();
     } catch (erro) {
-        mostrarToast('Não foi possível excluir o item.', 'erro');
+        mostrarToast('Não foi possível excluir o item do inventário.', 'erro');
     }
 }
 
@@ -308,7 +297,7 @@ function editarProduto(id) {
     const produto = produtosGlobais.find(p => p.id === id);
     if (!produto) return;
 
-    // Popula os campos internos do modal de edição
+    // Popula as referências internas do modal de edição
     document.getElementById('editId').value = produto.id;
     document.getElementById('editNome').value = produto.nome;
     document.getElementById('editCategoria').value = produto.categoria || '';
@@ -331,7 +320,6 @@ async function salvarEdicao(e) {
     if (e && e.preventDefault) e.preventDefault();
 
     const id = document.getElementById('editId').value;
-    const produtoAntigo = produtosGlobais.find(p => p.id == id);
 
     const produto = {
         nome: document.getElementById('editNome').value.trim(),
@@ -350,26 +338,22 @@ async function salvarEdicao(e) {
         if (!resposta.ok) throw new Error();
 
         fecharModal();
-        mostrarToast('Dados atualizados com sucesso!');
+        mostrarToast('Dados atualizados com sucesso!', 'sucesso');
         
-        let diffQtd = "";
-        if (produtoAntigo && produtoAntigo.quantidade !== produto.quantidade) {
-            diffQtd = ` (Estoque alterado de ${produtoAntigo.quantidade} para ${produto.quantidade})`;
-        }
-        registarLog(`PRODUTO EDITADO: "${produto.nome}" atualizado via painel de edição${diffQtd}.`);
-        carregarProdutos();
+        // Atualização Reativa: Procura as atualizações reais salvas na API
+        await carregarProdutos();
     } catch (erro) {
-        mostrarToast('Erro ao atualizar o produto.', 'erro');
+        mostrarToast('Erro ao atualizar dados do produto no servidor.', 'erro');
     }
 }
 
-// Configuração dos Event Listeners do painel principal
+// Configuração dos Event Listeners reativos do painel
 document.getElementById('editProdutoForm').addEventListener('submit', salvarEdicao);
 document.getElementById('pesquisa').addEventListener('input', processarExibicao);
 document.getElementById('filtroCategoria').addEventListener('change', processarExibicao);
 
 /* ==========================================================================
-   GERENCIAMENTO DE INTERRUPTOR DO MODO ESCURO
+   INTERRUPTOR DO MODO ESCURO (ESTADOS DE PERSISTÊNCIA)
    ========================================================================== */
 const btnTema = document.getElementById('btnTema');
 

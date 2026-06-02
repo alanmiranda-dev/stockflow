@@ -10,8 +10,8 @@
         /* CSS de Impressão de Alta Qualidade Corporativa */
         @media print {
             body { background: white; color: black; padding: 0; }
-            .btn-cancelar, .btn-tema, #btnTema, .card, #btnLimparLogs, #pesquisaLog, .btn-print {
-                display: none !important; /* Oculta ferramentas interativas no PDF */
+            .btn-cancelar, .btn-tema, #btnTema, .card, #btnLimparLogs, #pesquisaLog, .btn-print, .modal-confirm-overlay {
+                display: none !important; 
             }
             .container { max-width: 100%; width: 100%; margin: 0; padding: 0; }
             .timeline::before { left: 15px; background: #333 !important; }
@@ -26,10 +26,60 @@
             }
             h1 { font-size: 22px; margin-bottom: 5px; text-transform: uppercase; }
         }
+
+        /* Estilização do Novo Modal de Confirmação Personalizado */
+        .modal-confirm-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .modal-confirm-box {
+            background: var(--card-bg, #ffffff);
+            color: var(--text-main, #1f2937);
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            border: 1px solid var(--border-color, #e5e7eb);
+        }
+        .modal-confirm-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .btn-modal-sim {
+            background-color: #ef4444; color: white;
+            border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;
+        }
+        .btn-modal-nao {
+            background-color: #9ca3af; color: white;
+            border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;
+        }
     </style>
 </head>
 
 <body>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <div id="modalConfirmacao" class="modal-confirm-overlay">
+        <div class="modal-confirm-box">
+            <h3 style="margin-top: 0; color: #ef4444;">⚠️ Atenção!</h3>
+            <p>Tem certeza de que deseja apagar permanentemente todo o histórico de auditoria do banco de dados?</p>
+            <div class="modal-confirm-buttons">
+                <button id="btnConfirmarSim" class="btn-modal-sim">Sim, Limpar</button>
+                <button id="btnConfirmarNao" class="btn-modal-nao">Cancelar</button>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
 
@@ -38,7 +88,7 @@
                 ← Voltar ao Estoque
             </button>
             <div style="display: flex; gap: 10px;">
-                <button onclick="window.print()" class="btn-print" style="background: #4f46e5; color: white; padding: 8px 16px;">
+                <button onclick="window.print()" class="btn-print" style="background: #4f46e5; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
                     🖨️ Exportar PDF
                 </button>
                 <button id="btnTema" class="btn-tema">🌙 Modo Escuro</button>
@@ -54,7 +104,7 @@
             <input 
                 type="text" 
                 id="pesquisaLog" 
-                placeholder="Filtrar eventos (ex: 'SSD', 'NOVO', 'REMOVIDO')..." 
+                placeholder="Filtrar eventos (ex: 'Hardware', 'CADASTRO', 'EXCLUSÃO')..." 
                 style="flex: 2; margin-bottom: 0;"
             >
             <button id="btnLimparLogs" class="btn-limpar" style="background-color: var(--danger); color: white;">
@@ -62,61 +112,127 @@
             </button>
         </div>
 
-        <div class="timeline" id="timelineContainer">
-            </div>
+        <div class="timeline" id="timelineContainer"></div>
 
     </div>
 
     <script>
-        function carregarLogsPagina() {
-            const container = document.getElementById('timelineContainer');
-            const termo = document.getElementById('pesquisaLog').value.toLowerCase();
-            let logs = JSON.parse(localStorage.getItem('stockflow_logs')) || [];
+        const API_BASE = 'http://localhost:3000';
 
-            if (termo) {
-                logs = logs.filter(log => log.toLowerCase().includes(termo));
-            }
-
-            if (logs.length === 0) {
-                container.innerHTML = `<div class="card" style="text-align:center; color: var(--text-muted); font-style:italic;">Nenhum registro de auditoria encontrado.</div>`;
-                return;
-            }
-
-            container.innerHTML = logs.map(log => {
-                const correspondencia = log.match(/^\[(.*?)\] (.*)$/);
-                if (!correspondencia) return '';
-
-                const timestamp = correspondencia[1];
-                const mensagem = correspondencia[2];
-
-                let tipoClasse = 'log-info';
-                let icone = 'ℹ️';
-
-                if (mensagem.includes('NOVO PRODUTO')) { tipoClasse = 'log-sucesso'; icone = '➕'; }
-                else if (mensagem.includes('PRODUTO REMOVIDO')) { tipoClasse = 'log-erro'; icone = '🗑️'; }
-                else if (mensagem.includes('PRODUTO EDITADO')) { tipoClasse = 'log-alerta'; icone = '✏️'; }
-
-                return `
-                    <div class="timeline-item ${tipoClasse}">
-                        <div class="timeline-badge">${icone}</div>
-                        <div class="timeline-content card">
-                            <span class="timeline-time">${timestamp}</span>
-                            <p class="timeline-text">${mensagem}</p>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+        // Sistema reutilizável de Toast
+        function mostrarToast(mensagem, tipo = 'sucesso') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = `toast ${tipo}`;
+            toast.textContent = mensagem || '';
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('esconder');
+                toast.addEventListener('animationend', () => toast.remove());
+            }, 3000);
         }
 
-        document.getElementById('btnLimparLogs').addEventListener('click', () => {
-            if (confirm('Tem certeza de que deseja apagar permanentemente todo o histórico de alterações?')) {
-                localStorage.removeItem('stockflow_logs');
-                carregarLogsPagina();
+        // Busca os logs vindos diretamente do PostgreSQL mapeando as colunas reais do banco
+        async function carregarLogsPagina() {
+            const container = document.getElementById('timelineContainer');
+            const termo = document.getElementById('pesquisaLog').value.toLowerCase();
+            
+            try {
+                const resposta = await fetch(`${API_BASE}/logs`);
+                if (!resposta.ok) throw new Error();
+                let logs = await resposta.json();
+
+                // Filtragem reativa por texto baseada nas propriedades reais do banco (tipo e descricao)
+                if (termo) {
+                    logs = logs.filter(log => {
+                        const tipoTxt = (log.tipo || "").toLowerCase();
+                        const descTxt = (log.descricao || "").toLowerCase();
+                        return tipoTxt.includes(termo) || descTxt.includes(termo);
+                    });
+                }
+
+                if (logs.length === 0) {
+                    container.innerHTML = `<div class="card" style="text-align:center; color: var(--text-muted); font-style:italic;">Nenhum registro de auditoria encontrado.</div>`;
+                    return;
+                }
+
+                container.innerHTML = logs.map(log => {
+                    const acaoReal = log.tipo || 'INFO';
+                    const detalheReal = log.descricao || 'Sem detalhes informados';
+                    const dataRaw = log.data_evento;
+
+                    let tipoClasse = 'log-info';
+                    let icone = 'ℹ️';
+
+                    if (acaoReal === 'CADASTRO') { tipoClasse = 'log-sucesso'; icone = '➕'; }
+                    else if (acaoReal === 'EXCLUSÃO' || acaoReal === 'EXCLUSAO') { tipoClasse = 'log-erro'; icone = '🗑️'; }
+                    else if (acaoReal === 'EDIÇÃO' || acaoReal === 'EDICAO') { tipoClasse = 'log-alerta'; icone = '✏️'; }
+
+                    // Conversão segura do timestamp do PostgreSQL para padrão brasileiro
+                    let dataFormatada = 'Data indisponível';
+                    if (dataRaw) {
+                        const dataObjeto = new Date(dataRaw);
+                        if (!isNaN(dataObjeto.getTime())) {
+                            dataFormatada = dataObjeto.toLocaleString('pt-BR');
+                        }
+                    }
+
+                    return `
+                        <div class="timeline-item ${tipoClasse}">
+                            <div class="timeline-badge">${icone}</div>
+                            <div class="timeline-content card">
+                                <span class="timeline-time">${dataFormatada}</span>
+                                <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">[${acaoReal}]</strong>
+                                <p class="timeline-text" style="margin: 4px 0 0 0;">${detalheReal}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (erro) {
+                console.error(erro);
+                container.innerHTML = `<div class="card" style="text-align:center; color: #ef4444;">Falha ao obter logs do servidor central.</div>`;
             }
+        }
+
+        /* ==========================================================================
+           CONTROLE DO MODAL DE CONFIRMAÇÃO CUSTOMIZADO
+           ========================================================================== */
+        const modal = document.getElementById('modalConfirmacao');
+        const btnLimpar = document.getElementById('btnLimparLogs');
+        const btnSim = document.getElementById('btnConfirmarSim');
+        const btnNao = document.getElementById('btnConfirmarNao');
+
+        btnLimpar.addEventListener('click', () => {
+            modal.style.display = 'flex';
+        });
+
+        btnNao.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        btnSim.addEventListener('click', async () => {
+            modal.style.display = 'none';
+            try {
+                const resposta = await fetch(`${API_BASE}/logs`, { method: 'DELETE' });
+                if (!resposta.ok) throw new Error();
+
+                mostrarToast('Histórico de auditoria limpo com sucesso!', 'sucesso');
+                carregarLogsPagina();
+            } catch (erro) {
+                console.error(erro);
+                mostrarToast('Erro ao tentar limpar o histórico no servidor.', 'erro');
+            }
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) modal.style.display = 'none';
         });
 
         document.getElementById('pesquisaLog').addEventListener('input', carregarLogsPagina);
 
+        // Gerenciamento do Modo Escuro
         const btnTema = document.getElementById('btnTema');
         if (localStorage.getItem('tema') === 'dark') {
             document.body.classList.add('dark-mode');
@@ -129,6 +245,7 @@
             localStorage.setItem('tema', isDark ? 'dark' : 'light');
         });
 
+        // Inicializa os dados ao abrir a página
         carregarLogsPagina();
     </script>
 </body>
