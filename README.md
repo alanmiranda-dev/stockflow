@@ -284,9 +284,9 @@ Projeto desenvolvido para a disciplina de Redes e Sistemas Distribuídos.
 
 ### Integrantes
 
-2304059 - Alan Miranda
-2208530 - Andre Cicero da Silva
-2304716 - João Vitor Silva Santana
-2304706 - Pedro Otavio Oliveira Silva
-2301617 - Rafael Rueda Ananias
-2303662 - Renan Manancero de Oliveira
+- 2304059 - Alan Miranda
+- 2208530 - Andre Cicero da Silva
+- 2304716 - João Vitor Silva Santana
+- 2304706 - Pedro Otavio Oliveira Silva
+- 2301617 - Rafael Rueda Ananias
+- 2303662 - Renan Manancero de Oliveira
